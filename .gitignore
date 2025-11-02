@@ -1,0 +1,13 @@
+# Hide environment variables
+.env
+
+# Hide virtual environment folders
+venv/
+__pycache__/
+*.pyc
+
+# Node modules (if using JS)
+node_modules/
+
+# System files
+.DS_Store
