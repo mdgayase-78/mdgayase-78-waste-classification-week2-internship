@@ -1,4 +1,4 @@
-<<<<<<< HEAD
+
 
 # EcoVision — Waste Classifier +  Eco Chatbot 
 
