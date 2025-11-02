@@ -1,3 +1,4 @@
+<<<<<<< HEAD
 
 # EcoVision — Waste Classifier +  Eco Chatbot 
 
@@ -36,3 +37,7 @@ python -m venv venv
 - If webcam doesn't start: allow camera permissions in the browser.
 
 
+=======
+# mdgayase-78-waste-classification-week2-internship
+AI-powered Waste Classification Web App using Flask and Machine Learning With google AI chat bot
+>>>>>>> 679e1ead93e2f0e7cbb962a89d8d79b4bafa0db3
