@@ -22,7 +22,6 @@ python -m venv venv
              venv/Scripts/Activate.ps1/
 4. Open your browser to `http://localhost:8000` and use the app.
 
-> Note: Opening `index.html` directly with `file://` may fail to load the model due to browser restrictions. Use the local server.
 
 ## How to retrain / improve the model
 - This package uses a Teachable Machine export. To retrain the model you can:
@@ -40,4 +39,4 @@ python -m venv venv
 =======
 # mdgayase-78-waste-classification-week2-internship
 AI-powered Waste Classification Web App using Flask and Machine Learning With google AI chat bot
->>>>>>> 679e1ead93e2f0e7cbb962a89d8d79b4bafa0db3
+
