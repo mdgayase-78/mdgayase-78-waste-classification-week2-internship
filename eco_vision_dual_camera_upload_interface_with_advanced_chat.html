@@ -1,0 +1,259 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width,initial-scale=1" />
+  <title>EcoVision — Image Analysis & Gemini Chat</title>
+  <style>
+    /* Basic page layout */
+    :root{
+      --bg:#071423; --card:#0f2430; --accent1:#12c2e9; --accent2:#c471ed; --muted:#97a6ad; --glass: rgba(255,255,255,0.04);
+      --success:#2ee6a1; --danger:#ff6b6b; --shadow: 0 8px 30px rgba(3,9,14,0.6);
+      font-family: Inter, system-ui, -apple-system, 'Segoe UI', Roboto, 'Helvetica Neue', Arial;
+    }
+    html,body{height:100%; margin:0; background:linear-gradient(180deg,#021428 0%, #052033 100%); color:#e6f2f1}
+    .wrap{max-width:1200px; margin:36px auto; padding:28px}
+    header{display:flex;align-items:center;gap:16px;margin-bottom:18px}
+    .logo{width:56px;height:56px;border-radius:12px;background:linear-gradient(135deg,var(--accent1),var(--accent2));display:flex;align-items:center;justify-content:center;box-shadow:var(--shadow)}
+    .logo svg{width:30px;height:30px;filter:drop-shadow(0 3px 10px rgba(0,0,0,0.4));}
+    h1{margin:0;font-size:28px;letter-spacing:0.4px}
+    p.lead{margin:6px 0 0;color:var(--muted)}
+
+    /* Main card */
+    .card{background:linear-gradient(180deg, rgba(255,255,255,0.02), rgba(255,255,255,0.015)); padding:22px; border-radius:18px; box-shadow:var(--shadow);}
+    .grid{display:grid;grid-template-columns:1fr 420px;gap:20px;align-items:start}
+
+    /* Drop zone */
+    .dropzone{height:320px;border-radius:14px;border:2px dashed rgba(18,194,233,0.25);display:flex;align-items:center;justify-content:center;flex-direction:column;gap:12px;background:linear-gradient(180deg, rgba(255,255,255,0.01), rgba(255,255,255,0.005));position:relative}
+    .dropzone.dragover{border-color: var(--accent2); box-shadow: 0 10px 40px rgba(20,90,110,0.12);}
+    .dropzone .icon{font-size:48px}
+    .controls{display:flex;gap:10px;margin-top:12px}
+
+    .btn{background:linear-gradient(90deg,var(--accent1),var(--accent2));border:none;color:#042425;padding:10px 16px;border-radius:999px;cursor:pointer;font-weight:600;box-shadow: 0 6px 20px rgba(17,40,48,0.35)}
+    .btn.ghost{background:transparent;border:1px solid rgba(255,255,255,0.06);color:var(--muted);box-shadow:none}
+    .btn.disabled{opacity:0.5;pointer-events:none}
+
+    /* preview */
+    .preview{max-width:100%;height:240px;border-radius:10px;object-fit:contain;background:var(--glass);display:block}
+
+    /* Chat column */
+    .chat-wrap{display:flex;flex-direction:column;height:100%}
+    .chat-window{flex:1;background:linear-gradient(180deg, rgba(255,255,255,0.01), rgba(255,255,255,0.02));padding:12px;border-radius:12px;overflow:auto}
+    .message{margin:10px 0;max-width:88%;padding:10px 12px;border-radius:12px;display:inline-block}
+    .user{margin-left:auto;background:linear-gradient(90deg,#0fb0a5,#12c2e9);color:#042425}
+    .bot{background:linear-gradient(90deg,#123a44,#0e2a36);color:#dff6f2;border:1px solid rgba(255,255,255,0.03)}
+
+    .chat-input{display:flex;gap:8px;margin-top:12px}
+    .chat-input input{flex:1;padding:12px;border-radius:10px;border:1px solid rgba(255,255,255,0.04);background:transparent;color:inherit}
+    .meta{margin-top:10px;color:var(--muted);font-size:13px}
+
+    /* tag for classification result */
+    .tag{display:inline-block;padding:6px 10px;border-radius:999px;background:rgba(255,255,255,0.03);border:1px solid rgba(255,255,255,0.02);font-weight:600}
+
+    /* responsive */
+    @media (max-width:1000px){.grid{grid-template-columns:1fr;}.chat-wrap{margin-top:18px}}
+
+    /* small animation */
+    .pulse{animation:pulse 2s infinite}
+    @keyframes pulse{0%{transform:scale(1)}50%{transform:scale(1.02)}100%{transform:scale(1)}}
+  </style>
+</head>
+<body>
+  <div class="wrap">
+    <header>
+      <div class="logo" aria-hidden>
+        <svg viewBox="0 0 24 24" fill="none"><path d="M6 14c0-3.314 2.686-6 6-6s6 2.686 6 6" stroke="#042425" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"/><path d="M12 2v6" stroke="#042425" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"/></svg>
+      </div>
+      <div>
+        <h1>EcoVision</h1>
+        <p class="lead">Discover eco-friendly tips for everyday objects through AI-powered image analysis</p>
+      </div>
+    </header>
+
+    <div class="card">
+      <div class="grid">
+        <!-- left: image area -->
+        <div>
+          <div id="dropzone" class="dropzone" tabindex="0">
+            <div id="placeholder">
+              <div class="icon">📷</div>
+              <div style="font-weight:700;font-size:18px">Drop your image here or click to browse</div>
+              <div class="meta">Supports JPG, PNG &lt; 10MB — or use the Start Camera button</div>
+            </div>
+            <img id="preview" class="preview" style="display:none" alt="Preview" />
+            <video id="webcam" autoplay playsinline style="display:none;border-radius:10px;max-height:240px"></video>
+          </div>
+
+          <div class="controls">
+            <button id="startCamera" class="btn ghost">Start Camera</button>
+            <button id="uploadBtn" class="btn ghost">Upload Image</button>
+            <input id="fileInput" type="file" accept="image/*" style="display:none" />
+            <button id="analyzeBtn" class="btn disabled">🔎 Analyze Image</button>
+            <div style="flex:1"></div>
+            <div id="resultTag" class="tag" style="display:none"></div>
+          </div>
+
+          <div class="meta">Tip: hold item centered and well-lit for best results.</div>
+        </div>
+
+        <!-- right: chat area -->
+        <div class="chat-wrap">
+          <div class="chat-window" id="chatWindow" aria-live="polite"></div>
+          <form id="chatForm" class="chat-input">
+            <input id="chatInput" placeholder="Ask something or press Analyze to auto-send..." />
+            <button id="sendBtn" class="btn">Send</button>
+          </form>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <script>
+    // UX elements
+    const drop = document.getElementById('dropzone');
+    const fileInput = document.getElementById('fileInput');
+    const uploadBtn = document.getElementById('uploadBtn');
+    const startCamera = document.getElementById('startCamera');
+    const analyzeBtn = document.getElementById('analyzeBtn');
+    const preview = document.getElementById('preview');
+    const webcam = document.getElementById('webcam');
+    const resultTag = document.getElementById('resultTag');
+    const chatWindow = document.getElementById('chatWindow');
+    const chatForm = document.getElementById('chatForm');
+    const chatInput = document.getElementById('chatInput');
+
+    let currentImageBlob = null;
+    let usingWebcam = false;
+    let model = null;
+
+    // Helper: append message to chat
+    function appendMessage(text, who='bot'){
+      const div = document.createElement('div');
+      div.className = 'message ' + (who==='user' ? 'user' : 'bot');
+      div.innerText = text;
+      chatWindow.appendChild(div);
+      chatWindow.scrollTop = chatWindow.scrollHeight;
+    }
+
+    // Drag & drop
+    ['dragenter','dragover'].forEach(ev=> drop.addEventListener(ev, e=>{
+      e.preventDefault(); e.stopPropagation(); drop.classList.add('dragover');
+    }));
+    ['dragleave','drop'].forEach(ev=> drop.addEventListener(ev, e=>{
+      e.preventDefault(); e.stopPropagation(); drop.classList.remove('dragover');
+    }));
+
+    drop.addEventListener('click', ()=> fileInput.click());
+    drop.addEventListener('drop', (e)=>{
+      const f = e.dataTransfer.files && e.dataTransfer.files[0];
+      if (f) loadFile(f);
+    });
+
+    uploadBtn.addEventListener('click', ()=> fileInput.click());
+    fileInput.addEventListener('change', (e)=>{
+      const f = e.target.files && e.target.files[0];
+      if (f) loadFile(f);
+    });
+
+    function loadFile(file){
+      if (!file.type.startsWith('image/')) return alert('Please upload an image file');
+      usingWebcam = false;
+      stopWebcam();
+      const url = URL.createObjectURL(file);
+      preview.src = url; preview.style.display = 'block'; webcam.style.display='none';
+      currentImageBlob = file; analyzeBtn.classList.remove('disabled');
+      resultTag.style.display='none';
+    }
+
+    // Camera
+    let stream = null;
+    startCamera.addEventListener('click', async ()=>{
+      try{
+        stream = await navigator.mediaDevices.getUserMedia({video:{facingMode:'environment'}});
+        webcam.srcObject = stream; webcam.style.display='block'; preview.style.display='none'; usingWebcam=true; currentImageBlob=null; analyzeBtn.classList.remove('disabled');
+      }catch(err){
+        alert('Cannot access camera: ' + err.message);
+      }
+    });
+    function stopWebcam(){ if(stream){ stream.getTracks().forEach(t=>t.stop()); stream=null; }}
+
+    // Analyze button behaviour: grab image from chosen source and classify
+    analyzeBtn.addEventListener('click', async ()=>{
+      if (analyzeBtn.classList.contains('disabled')) return;
+      analyzeBtn.classList.add('disabled'); analyzeBtn.innerText='Analyzing...';
+      let imgData;
+      if (usingWebcam){
+        // capture current frame
+        const c = document.createElement('canvas'); c.width = webcam.videoWidth || 640; c.height = webcam.videoHeight || 480; c.getContext('2d').drawImage(webcam,0,0,c.width,c.height);
+        imgData = await new Promise(res=> c.toBlob(res,'image/jpeg'));
+      } else if (currentImageBlob){
+        imgData = currentImageBlob;
+      } else { alert('No image selected'); analyzeBtn.classList.remove('disabled'); analyzeBtn.innerText='🔎 Analyze Image'; return; }
+
+      try{
+        // 1) Run client-side classification (Teachable Machine) if available
+        let label = null;
+        if (model){
+          const img = document.createElement('img'); img.src = URL.createObjectURL(imgData);
+          await new Promise(r=> img.onload=r);
+          const canvas = document.createElement('canvas'); const size=224; canvas.width=size; canvas.height=size; const ctx=canvas.getContext('2d'); ctx.drawImage(img,0,0,size,size);
+          const preds = await model.predict(canvas);
+          preds.sort((a,b)=>b.probability-a.probability);
+          label = preds[0].className || null;
+        }
+
+        // show immediate UI tag if label exists
+        if (label){ resultTag.innerText = label; resultTag.style.display='inline-block'; }
+
+        // 2) Compose the eco question to send to Gemini
+        const ecoQuestion = label ? `How should I dispose or recycle a ${label}? Provide short practical steps.` : `I uploaded an image. Please advise how to dispose or recycle it, and what category it might be.`;
+
+        // show user message
+        appendMessage(ecoQuestion, 'user');
+
+        // 3) Send to backend /api/chat
+        const resp = await fetch('/api/chat', {method:'POST',headers:{'Content-Type':'application/json'},body: JSON.stringify({message: ecoQuestion})});
+        const j = await resp.json();
+        if (j.reply) appendMessage(j.reply,'bot');
+        else appendMessage('No reply from server.','bot');
+
+      }catch(err){
+        console.error(err); appendMessage('Error during analysis: '+ err.message,'bot');
+      } finally{
+        analyzeBtn.classList.remove('disabled'); analyzeBtn.innerText='🔎 Analyze Image';
+      }
+    });
+
+    // Chat form manual send
+    chatForm.addEventListener('submit', async (e)=>{
+      e.preventDefault(); const t = chatInput.value.trim(); if(!t) return; appendMessage(t,'user'); chatInput.value='';
+      appendMessage('…thinking','bot');
+      try{
+        const res = await fetch('/api/chat',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({message:t})});
+        const data = await res.json();
+        // remove last thinking
+        const bots = chatWindow.querySelectorAll('.bot'); if(bots.length) bots[bots.length-1].remove();
+        appendMessage(data.reply || 'No reply from server','bot');
+      }catch(err){ console.error(err); appendMessage('Backend error: '+err.message,'bot'); }
+    });
+
+    // Load Teachable Machine model if present (non-blocking)
+    (async function loadModel(){
+      try{
+        if(window.tmImage){
+          model = await tmImage.load('./model.json','./metadata.json');
+          console.log('TM model loaded');
+        }else{
+          // load lib dynamically
+          const s = document.createElement('script'); s.src='https://cdn.jsdelivr.net/npm/@teachablemachine/image@0.8.4/dist/teachablemachine-image.min.js'; document.head.appendChild(s);
+          s.onload = async ()=>{ model = await tmImage.load('./model.json','./metadata.json'); console.log('TM model loaded (late)'); };
+        }
+      }catch(e){ console.warn('No local model available or failed to load',e); }
+    })();
+
+    // Before unload cleanup
+    window.addEventListener('beforeunload', ()=> stopWebcam());
+
+  </script>
+</body>
+</html>
