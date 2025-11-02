@@ -1,7 +1,4 @@
 
-// EcoVision frontend (updated): uses a backend /api/chat endpoint for an enhanced LLM-powered chatbot.
-// Keeps image classification client-side as before.
-
 let model, maxPredictions;
 const URL = "./model.json"; // local model
 
